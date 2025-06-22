@@ -1,0 +1,9 @@
+langchain>=0.1.0
+langchain-community>=0.0.30
+langchain-ollama
+langchain-huggingface
+sentence-transformers
+torch
+streamlit
+chromadb
+pypdf
