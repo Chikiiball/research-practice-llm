@@ -5,7 +5,7 @@ import os
 st.set_page_config(page_title="RAG Chatbot", layout="centered")
 st.title("📄 Local PDF Q&A Chatbot")
 
-# Check available PDFs
+# Show PDF count
 pdf_dir = "pdf-dataset"
 pdf_count = len([f for f in os.listdir(pdf_dir) if f.endswith(".pdf")])
 st.info(f"📁 Found {pdf_count} PDF(s) in `{pdf_dir}`")
