@@ -1,4 +1,7 @@
 import os
+import json
+import time
+
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -8,6 +11,8 @@ from langchain.chains import RetrievalQA
 
 from sentence_transformers import SentenceTransformer, util
 import torch
+
+RESPONSE_LOG_FILE = "responseData.json"
 
 # Load all PDFs from a directory
 def load_all_pdfs(pdf_dir="pdf-dataset/"):
@@ -58,11 +63,25 @@ def is_context_relevant(question, docs, threshold=0.6):
     print(f"[DEBUG] Max similarity score: {max_score:.2f}")
     return max_score > threshold
 
+def log_response(data):
+    if os.path.exists(RESPONSE_LOG_FILE):
+        with open(RESPONSE_LOG_FILE, "r", encoding="utf-8") as f:
+            existing = json.load(f)
+    else:
+        existing = []
+
+    existing.append(data)
+
+    with open(RESPONSE_LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump(existing, f, indent=2, ensure_ascii=False)
+
 def ask(question: str):
     if not documents:
         raise RuntimeError("No documents loaded. Cannot answer questions.")
 
     print(f"[DEBUG] Question: {question}")
+    start_time = time.time()
+
     result = qa({"query": question})
     answer = result.get('result', '')
     sources = result.get('source_documents', [])
@@ -70,14 +89,33 @@ def ask(question: str):
     print(f"[DEBUG] Retrieved answer: {answer}")
     print(f"[DEBUG] Number of source docs: {len(sources)}")
 
+    duration = round(time.time() - start_time, 2)
+    label = ""
+    used_sources = []
+
     if sources and is_context_relevant(question, sources):
-        return "Answer (From PDF):", answer, sources
+        label = "Answer (From PDF)"
+        used_sources = [doc.page_content for doc in sources]
+        response_text = answer
     else:
         print("[DEBUG] Retrieved documents are not relevant enough. Falling back to LLM...")
         try:
-            model_answer = llm.invoke(f"Answer this question directly: {question}")
-            print(f"[DEBUG] Model direct answer: {model_answer}")
+            response_text = llm.invoke(f"Answer this question directly: {question}")
+            label = "Answer (From Model)"
+            print(f"[DEBUG] Model direct answer: {response_text}")
         except Exception as e:
-            model_answer = f"Error getting answer from model: {e}"
-            print(f"[ERROR] {model_answer}")
-        return "Answer (From Model):", model_answer, []
+            response_text = f"Error getting answer from model: {e}"
+            label = "Error"
+            print(f"[ERROR] {response_text}")
+
+    # Save log
+    log_response({
+        "question": question,
+        "response_type": label,
+        "response": response_text,
+        "sources": used_sources,
+        "response_time_sec": duration,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+    return label, response_text, sources
