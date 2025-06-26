@@ -68,18 +68,20 @@ if query:
         </div>
         """, unsafe_allow_html=True)
 
-    if sources:
+    # Only show source chunks if answer was from PDF
+    if label == "Answer (From PDF)" and sources:
         st.markdown("### 📚 Source(s) Retrieved:")
         for i, doc in enumerate(sources):
             with st.expander(f"Chunk {i+1}"):
                 st.write(doc.page_content)
+
 
 # --- DISPLAY RECENT LOGS PREVIEW ---
 st.markdown("---")
 with st.expander("🕑 Recent Interactions (Logs)", expanded=False):
     logs = load_logs()
     if logs:
-        logs = logs[-5:][::-1]  # Last 5 logs
+        logs = logs[-10:][::-1]  # Last 5 logs
         for i, log in enumerate(logs):
             col1, col2 = st.columns([0.9, 0.1])
             with col1:
